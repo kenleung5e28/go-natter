@@ -12,7 +12,7 @@ type ResponseError struct {
 	ErrorText      string `json:"error"`
 }
 
-func (e *ResponseError) Render(_ http.ResponseWriter, r *http.Request) error {
+func (e ResponseError) Render(_ http.ResponseWriter, r *http.Request) error {
 	render.Status(r, e.HTTPStatusCode)
 	return nil
 }

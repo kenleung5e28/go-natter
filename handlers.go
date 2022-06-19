@@ -53,7 +53,7 @@ type CreateSpaceRequest struct {
 	Owner string `json:"owner"`
 }
 
-func (c *CreateSpaceRequest) Bind(_ *http.Request) error {
+func (c CreateSpaceRequest) Bind(_ *http.Request) error {
 	if c.Name == "" || len(c.Name) > 255 {
 		return errors.New("length of name must between 1 and 255")
 	}
@@ -69,7 +69,7 @@ type CreateSpaceResponse struct {
 	URI  string `json:"uri"`
 }
 
-func (c *CreateSpaceResponse) Render(_ http.ResponseWriter, r *http.Request) error {
+func (c CreateSpaceResponse) Render(_ http.ResponseWriter, r *http.Request) error {
 	render.Status(r, 201)
 	return nil
 }
