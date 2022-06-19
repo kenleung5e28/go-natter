@@ -52,7 +52,7 @@ type CreateSpaceRequest struct {
 	Owner string `json:"owner"`
 }
 
-func (c CreateSpaceRequest) Bind(_ *http.Request) error {
+func (c *CreateSpaceRequest) Bind(_ *http.Request) error {
 	if c.Name == "" {
 		return errors.New("name must be non-empty")
 	}
