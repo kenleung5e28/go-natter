@@ -25,3 +25,12 @@ func InvalidRequestError(err error) render.Renderer {
 		ErrorText:      err.Error(),
 	}
 }
+
+func ServerError(err error) render.Renderer {
+	return &ResponseError{
+		Error:          err,
+		HTTPStatusCode: 500,
+		Message:        "Server error.",
+		ErrorText:      err.Error(),
+	}
+}
