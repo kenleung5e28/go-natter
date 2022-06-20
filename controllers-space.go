@@ -50,7 +50,7 @@ type CreateSpaceRequest struct {
 
 func (c CreateSpaceRequest) Bind(_ *http.Request) error {
 	if c.Name == "" || len(c.Name) > 255 {
-		return errors.New("length of name must between 1 and 255")
+		return errors.New("length of name must be between 1 and 255")
 	}
 	pattern := regexp.MustCompile("[a-zA-Z][a-zA-Z\\d]{1,29}")
 	if !pattern.MatchString(c.Owner) {
