@@ -31,6 +31,11 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(render.SetContentType(render.ContentTypeJSON))
+	r.Use(middleware.SetHeader("X-Content-Type-Options", "nosniff"))
+	r.Use(middleware.SetHeader("X-Frame-Options", "DENY"))
+	r.Use(middleware.SetHeader("X-XSS-Protection", "0"))
+	r.Use(middleware.SetHeader("Cache-Control", "no-store"))
+	r.Use(middleware.SetHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; sandbox"))
 	r.Route("/spaces", func(r chi.Router) {
 		r.Post("/", env.CreateSpace)
 	})
