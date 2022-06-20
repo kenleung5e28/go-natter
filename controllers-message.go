@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/render"
 	"net/http"
 	"regexp"
+	"time"
 )
 
 func (e Env) AddMessage(w http.ResponseWriter, r *http.Request) {
@@ -52,6 +53,30 @@ func (e Env) AddMessage(w http.ResponseWriter, r *http.Request) {
 	render.Render(w, r, &AddMessageResponse{
 		URI: fmt.Sprintf("/spaces/%s/messages/%d", spaceId, messageId),
 	})
+}
+
+func (e Env) GetAllMessages(w http.ResponseWriter, r *http.Request) {
+	spaceId := chi.URLParam("spaceId")
+	sinceRaw := r.URL.Query().Get("since")
+	_, err := time.Parse("YYYY-MM-DD hh:mm:ss", sinceRaw)
+	sinceValid := err != nil
+	ctx := r.Context()
+	tx, err := e.db.BeginTx(ctx, nil)
+	if err != nil {
+		render.Render(w, r, ErrServer(err))
+		return
+	}
+	defer tx.Rollback()
+	query := "SELECT msg_id FROM messages WHERE spaceId = ?"
+	if sinceValid {
+		query += " AND msg_time >= ?"
+	}
+	rows, err := tx.QueryContext(ctx, query)
+	if err != nil {
+		render.Render(w, r, ErrServer(err))
+		return
+	}
+	// TODO
 }
 
 type AddMessageRequest struct {
