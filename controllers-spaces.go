@@ -1,17 +1,12 @@
 package main
 
 import (
-	"database/sql"
 	"errors"
 	"github.com/go-chi/render"
 	"net/http"
 	"regexp"
 	"strconv"
 )
-
-type Env struct {
-	db *sql.DB
-}
 
 func (e Env) CreateSpace(w http.ResponseWriter, r *http.Request) {
 	data := &CreateSpaceRequest{}

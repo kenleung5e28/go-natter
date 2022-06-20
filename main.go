@@ -14,6 +14,10 @@ import (
 //go:embed schema.sql
 var schema string
 
+type Env struct {
+	db *sql.DB
+}
+
 func main() {
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
