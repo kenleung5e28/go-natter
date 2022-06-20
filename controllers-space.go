@@ -2,10 +2,10 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"github.com/go-chi/render"
 	"net/http"
 	"regexp"
-	"strconv"
 )
 
 func (e Env) CreateSpace(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +39,7 @@ func (e Env) CreateSpace(w http.ResponseWriter, r *http.Request) {
 	}
 	render.Render(w, r, &CreateSpaceResponse{
 		Name: data.Name,
-		URI:  "/spaces/" + strconv.FormatInt(spaceId, 10),
+		URI:  fmt.Sprintf("/spaces/%d", spaceId),
 	})
 }
 
