@@ -11,13 +11,13 @@ import (
 func (e Env) CreateSpace(w http.ResponseWriter, r *http.Request) {
 	data := &CreateSpaceRequest{}
 	if err := render.Bind(r, data); err != nil {
-		render.Render(w, r, InvalidRequestError(err))
+		render.Render(w, r, ErrInvalidRequest(err))
 		return
 	}
 	ctx := r.Context()
 	tx, err := e.db.BeginTx(ctx, nil)
 	if err != nil {
-		render.Render(w, r, ServerError(err))
+		render.Render(w, r, ErrServer(err))
 		return
 	}
 	defer tx.Rollback()
@@ -25,16 +25,16 @@ func (e Env) CreateSpace(w http.ResponseWriter, r *http.Request) {
 		"INSERT INTO spaces(name, owner) VALUES (?, ?);",
 		data.Name, data.Owner)
 	if err != nil {
-		render.Render(w, r, ServerError(err))
+		render.Render(w, r, ErrServer(err))
 		return
 	}
 	spaceId, err := res.LastInsertId()
 	if err != nil {
-		render.Render(w, r, ServerError(err))
+		render.Render(w, r, ErrServer(err))
 		return
 	}
 	if err = tx.Commit(); err != nil {
-		render.Render(w, r, ServerError(err))
+		render.Render(w, r, ErrServer(err))
 		return
 	}
 	render.Render(w, r, &CreateSpaceResponse{

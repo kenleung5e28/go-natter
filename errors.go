@@ -5,31 +5,31 @@ import (
 	"net/http"
 )
 
-type ResponseError struct {
+type ErrResponse struct {
 	Error          error  `json:"-"`
-	HTTPStatusCode int    `json:"-"`
+	HttpStatusCode int    `json:"-"`
 	Message        string `json:"message"`
 	ErrorText      string `json:"error"`
 }
 
-func (e ResponseError) Render(_ http.ResponseWriter, r *http.Request) error {
-	render.Status(r, e.HTTPStatusCode)
+func (e ErrResponse) Render(_ http.ResponseWriter, r *http.Request) error {
+	render.Status(r, e.HttpStatusCode)
 	return nil
 }
 
-func InvalidRequestError(err error) render.Renderer {
-	return &ResponseError{
+func ErrInvalidRequest(err error) render.Renderer {
+	return &ErrResponse{
 		Error:          err,
-		HTTPStatusCode: 400,
+		HttpStatusCode: 400,
 		Message:        "Invalid request.",
 		ErrorText:      err.Error(),
 	}
 }
 
-func ServerError(err error) render.Renderer {
-	return &ResponseError{
+func ErrServer(err error) render.Renderer {
+	return &ErrResponse{
 		Error:          err,
-		HTTPStatusCode: 500,
+		HttpStatusCode: 500,
 		Message:        "Server error.",
 		ErrorText:      err.Error(),
 	}
