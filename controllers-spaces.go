@@ -64,7 +64,7 @@ type CreateSpaceResponse struct {
 	URI  string `json:"uri"`
 }
 
-func (c CreateSpaceResponse) Render(_ http.ResponseWriter, r *http.Request) error {
+func (CreateSpaceResponse) Render(_ http.ResponseWriter, r *http.Request) error {
 	render.Status(r, 201)
 	return nil
 }
