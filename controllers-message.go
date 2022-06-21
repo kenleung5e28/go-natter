@@ -65,7 +65,7 @@ func (e Env) GetAllMessages(w http.ResponseWriter, r *http.Request) {
 	}
 	since := r.URL.Query().Get("since")
 	if since != "" {
-		if _, err := time.Parse("YYYY-MM-DD hh:mm:ss", since); err != nil {
+		if _, err := time.Parse(time.RFC3339, since); err != nil {
 			render.Render(w, r, ErrInvalidRequest(err))
 			return
 		}
