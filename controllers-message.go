@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/render"
 	"net/http"
 	"regexp"
+	"strconv"
 	"time"
 )
 
@@ -57,7 +58,11 @@ func (e Env) AddMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (e Env) GetAllMessages(w http.ResponseWriter, r *http.Request) {
-	spaceId := chi.URLParam(r, "spaceId")
+	spaceId, err := strconv.ParseInt(chi.URLParam(r, "spaceId"), 10, 64)
+	if err != nil {
+		render.Render(w, r, ErrNotFound)
+		return
+	}
 	since := r.URL.Query().Get("since")
 	if since != "" {
 		if _, err := time.Parse("YYYY-MM-DD hh:mm:ss", since); err != nil {
