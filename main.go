@@ -40,7 +40,7 @@ func main() {
 		r.Post("/", env.CreateSpace)
 		r.Route("/{spaceId}/messages", func(r chi.Router) {
 			r.Post("/", env.AddMessage)
-			// r.Get("/", env.GetAllMessages)
+			r.Get("/", env.GetAllMessages)
 			// r.Get("/{messageId}", env.GetMessage)
 		})
 	})

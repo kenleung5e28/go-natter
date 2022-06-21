@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/go-chi/chi/v5"
@@ -56,10 +57,14 @@ func (e Env) AddMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (e Env) GetAllMessages(w http.ResponseWriter, r *http.Request) {
-	spaceId := chi.URLParam("spaceId")
-	sinceRaw := r.URL.Query().Get("since")
-	_, err := time.Parse("YYYY-MM-DD hh:mm:ss", sinceRaw)
-	sinceValid := err != nil
+	spaceId := chi.URLParam(r, "spaceId")
+	since := r.URL.Query().Get("since")
+	if since != "" {
+		if _, err := time.Parse("YYYY-MM-DD hh:mm:ss", since); err != nil {
+			render.Render(w, r, ErrInvalidRequest(err))
+			return
+		}
+	}
 	ctx := r.Context()
 	tx, err := e.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -67,16 +72,28 @@ func (e Env) GetAllMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	query := "SELECT msg_id FROM messages WHERE spaceId = ?"
-	if sinceValid {
-		query += " AND msg_time >= ?"
+	var rows *sql.Rows
+	if since != "" {
+		query := "SELECT msg_id FROM messages WHERE space_id = ? AND msg_time >= ?"
+		rows, err = tx.QueryContext(ctx, query, spaceId, since)
+	} else {
+		query := "SELECT msg_id FROM messages WHERE space_id = ?"
+		rows, err = tx.QueryContext(ctx, query, spaceId)
 	}
-	rows, err := tx.QueryContext(ctx, query)
 	if err != nil {
 		render.Render(w, r, ErrServer(err))
 		return
 	}
-	// TODO
+	var messageIds []string
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			render.Render(w, r, ErrServer(err))
+			return
+		}
+		messageIds = append(messageIds, id)
+	}
+	render.JSON(w, r, messageIds)
 }
 
 type AddMessageRequest struct {
