@@ -37,9 +37,11 @@ func (e Env) CreateSpace(w http.ResponseWriter, r *http.Request) {
 		render.Render(w, r, ErrServer(err))
 		return
 	}
+	uri := fmt.Sprintf("/spaces/%d", spaceId)
+	w.Header().Set("Location", uri)
 	render.Render(w, r, &CreateSpaceResponse{
 		Name: data.Name,
-		URI:  fmt.Sprintf("/spaces/%d", spaceId),
+		URI:  uri,
 	})
 }
 
