@@ -101,6 +101,34 @@ func (e Env) GetAllMessages(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, messageIds)
 }
 
+func (e Env) GetMessage(w http.ResponseWriter, r *http.Request) {
+	spaceId, err := strconv.ParseInt(chi.URLParam(r, "spaceId"), 10, 64)
+	if err != nil {
+		render.Render(w, r, ErrNotFound)
+		return
+	}
+	messageId, err := strconv.ParseInt(chi.URLParam(r, "messageId"), 10, 64)
+	if err != nil {
+		render.Render(w, r, ErrNotFound)
+		return
+	}
+	ctx := r.Context()
+	tx, err := e.db.BeginTx(ctx, nil)
+	if err != nil {
+		render.Render(w, r, ErrServer(err))
+		return
+	}
+	data := &GetMessageResponse{}
+	err = tx.QueryRowContext(ctx,
+		"SELECT space_id, msg_id, author, msg_time, msg_text FROM messages WHERE space_id = ? AND msg_id = ?",
+		spaceId, messageId).Scan(&data.SpaceId, &data.MessageId, &data.Author, &data.Time, &data.Message)
+	if err != nil {
+		render.Render(w, r, ErrServer(err))
+		return
+	}
+	render.Render(w, r, data)
+}
+
 type AddMessageRequest struct {
 	Author string `json:"author"`
 	Text   string `json:"msg_text"`
@@ -122,6 +150,19 @@ type AddMessageResponse struct {
 }
 
 func (AddMessageResponse) Render(_ http.ResponseWriter, r *http.Request) error {
+	render.Status(r, 201)
+	return nil
+}
+
+type GetMessageResponse struct {
+	SpaceId   int64     `json:"spaceId"`
+	MessageId int64     `json:"msgId"`
+	Author    string    `json:"author"`
+	Time      time.Time `json:"time"`
+	Message   string    `json:"message"`
+}
+
+func (GetMessageResponse) Render(_ http.ResponseWriter, r *http.Request) error {
 	render.Status(r, 201)
 	return nil
 }

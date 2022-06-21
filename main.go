@@ -41,7 +41,7 @@ func main() {
 		r.Route("/{spaceId}/messages", func(r chi.Router) {
 			r.Post("/", env.AddMessage)
 			r.Get("/", env.GetAllMessages)
-			// r.Get("/{messageId}", env.GetMessage)
+			r.Get("/{messageId}", env.GetMessage)
 		})
 	})
 	http.ListenAndServe(":8000", r)
