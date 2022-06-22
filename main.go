@@ -18,6 +18,31 @@ type Env struct {
 	db *sql.DB
 }
 
+func filterInvalidContentTypeRequests(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" && render.GetRequestContentType(r) != render.ContentTypeJSON {
+			render.Render(w, r, &ErrResponse{
+				HTTPStatusCode: 415,
+				Message:        http.StatusText(415),
+				ErrorText:      "Only application/json supported",
+			})
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func addSecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "0")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; sandbox")
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
@@ -30,12 +55,9 @@ func main() {
 	env := &Env{db: db}
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
+	r.Use(addSecurityHeaders)
+	r.Use(filterInvalidContentTypeRequests)
 	r.Use(render.SetContentType(render.ContentTypeJSON))
-	r.Use(middleware.SetHeader("X-Content-Type-Options", "nosniff"))
-	r.Use(middleware.SetHeader("X-Frame-Options", "DENY"))
-	r.Use(middleware.SetHeader("X-XSS-Protection", "0"))
-	r.Use(middleware.SetHeader("Cache-Control", "no-store"))
-	r.Use(middleware.SetHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; sandbox"))
 	r.Route("/spaces", func(r chi.Router) {
 		r.Post("/", env.CreateSpace)
 		r.Route("/{spaceId}/messages", func(r chi.Router) {
