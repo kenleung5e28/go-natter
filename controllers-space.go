@@ -11,13 +11,13 @@ import (
 func (e Env) CreateSpace(w http.ResponseWriter, r *http.Request) {
 	data := &CreateSpaceRequest{}
 	if err := render.Bind(r, data); err != nil {
-		render.Render(w, r, ErrInvalidRequest(err))
+		renderInvalidRequest(w, r, err)
 		return
 	}
 	ctx := r.Context()
 	tx, err := e.db.BeginTx(ctx, nil)
 	if err != nil {
-		render.Render(w, r, ErrServer(err))
+		renderServerError(w, r, err)
 		return
 	}
 	defer tx.Rollback()
@@ -25,21 +25,22 @@ func (e Env) CreateSpace(w http.ResponseWriter, r *http.Request) {
 		"INSERT INTO spaces(name, owner) VALUES (?, ?);",
 		data.Name, data.Owner)
 	if err != nil {
-		render.Render(w, r, ErrServer(err))
+		renderServerError(w, r, err)
 		return
 	}
 	spaceId, err := res.LastInsertId()
 	if err != nil {
-		render.Render(w, r, ErrServer(err))
+		renderServerError(w, r, err)
 		return
 	}
 	if err = tx.Commit(); err != nil {
-		render.Render(w, r, ErrServer(err))
+		renderServerError(w, r, err)
 		return
 	}
 	uri := fmt.Sprintf("/spaces/%d", spaceId)
+	w.WriteHeader(201)
 	w.Header().Set("Location", uri)
-	render.Render(w, r, &CreateSpaceResponse{
+	render.JSON(w, r, CreateSpaceResponse{
 		Name: data.Name,
 		URI:  uri,
 	})
@@ -64,9 +65,4 @@ func (c CreateSpaceRequest) Bind(_ *http.Request) error {
 type CreateSpaceResponse struct {
 	Name string `json:"name"`
 	URI  string `json:"uri"`
-}
-
-func (CreateSpaceResponse) Render(_ http.ResponseWriter, r *http.Request) error {
-	render.Status(r, 201)
-	return nil
 }

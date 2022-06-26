@@ -12,27 +12,29 @@ type ErrResponse struct {
 	ErrorText      string `json:"error"`
 }
 
-func (e ErrResponse) Render(_ http.ResponseWriter, r *http.Request) error {
-	render.Status(r, e.HTTPStatusCode)
-	return nil
+func renderError(w http.ResponseWriter, r *http.Request, e ErrResponse) {
+	w.WriteHeader(e.HTTPStatusCode)
+	render.JSON(w, r, e)
 }
 
-func ErrInvalidRequest(err error) render.Renderer {
-	return &ErrResponse{
-		Error:          err,
-		HTTPStatusCode: 400,
-		Message:        "Invalid request.",
-		ErrorText:      err.Error(),
-	}
-}
-
-var ErrNotFound = &ErrResponse{HTTPStatusCode: 404, Message: "Resource not found."}
-
-func ErrServer(err error) render.Renderer {
-	return &ErrResponse{
+func renderServerError(w http.ResponseWriter, r *http.Request, err error) {
+	renderError(w, r, ErrResponse{
 		Error:          err,
 		HTTPStatusCode: 500,
 		Message:        "Server error.",
 		ErrorText:      err.Error(),
-	}
+	})
+}
+
+func renderInvalidRequest(w http.ResponseWriter, r *http.Request, err error) {
+	renderError(w, r, ErrResponse{
+		Error:          err,
+		HTTPStatusCode: 400,
+		Message:        "Invalid request.",
+		ErrorText:      err.Error(),
+	})
+}
+
+func renderNotFound(w http.ResponseWriter, r *http.Request) {
+	renderError(w, r, ErrResponse{HTTPStatusCode: 404, Message: "Resource not found."})
 }

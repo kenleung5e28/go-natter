@@ -16,43 +16,44 @@ func (e Env) AddMessage(w http.ResponseWriter, r *http.Request) {
 	spaceId := chi.URLParam(r, "spaceId")
 	data := &AddMessageRequest{}
 	if err := render.Bind(r, data); err != nil {
-		render.Render(w, r, ErrInvalidRequest(err))
+		renderInvalidRequest(w, r, err)
 		return
 	}
 	ctx := r.Context()
 	tx, err := e.db.BeginTx(ctx, nil)
 	if err != nil {
-		render.Render(w, r, ErrServer(err))
+		renderServerError(w, r, err)
 		return
 	}
 	defer tx.Rollback()
 	var count int64
 	err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM spaces WHERE space_id = ?;", spaceId).Scan(&count)
 	if err != nil {
-		render.Render(w, r, ErrServer(err))
+		renderServerError(w, r, err)
 		return
 	}
 	if count == 0 {
-		render.Render(w, r, ErrNotFound)
+		renderNotFound(w, r)
 		return
 	}
 	res, err := tx.ExecContext(ctx,
 		"INSERT INTO messages(space_id, author, msg_text) VALUES (?, ?, ?);",
 		spaceId, data.Author, data.Text)
 	if err != nil {
-		render.Render(w, r, ErrServer(err))
+		renderServerError(w, r, err)
 		return
 	}
 	messageId, err := res.LastInsertId()
 	if err != nil {
-		render.Render(w, r, ErrServer(err))
+		renderServerError(w, r, err)
 		return
 	}
 	if err = tx.Commit(); err != nil {
-		render.Render(w, r, ErrServer(err))
+		renderServerError(w, r, err)
 		return
 	}
-	render.Render(w, r, &AddMessageResponse{
+	w.WriteHeader(201)
+	render.JSON(w, r, AddMessageResponse{
 		URI: fmt.Sprintf("/spaces/%s/messages/%d", spaceId, messageId),
 	})
 }
@@ -60,20 +61,20 @@ func (e Env) AddMessage(w http.ResponseWriter, r *http.Request) {
 func (e Env) GetAllMessages(w http.ResponseWriter, r *http.Request) {
 	spaceId, err := strconv.ParseInt(chi.URLParam(r, "spaceId"), 10, 64)
 	if err != nil {
-		render.Render(w, r, ErrNotFound)
+		renderNotFound(w, r)
 		return
 	}
 	since := r.URL.Query().Get("since")
 	if since != "" {
 		if _, err := time.Parse(time.RFC3339, since); err != nil {
-			render.Render(w, r, ErrInvalidRequest(err))
+			renderInvalidRequest(w, r, err)
 			return
 		}
 	}
 	ctx := r.Context()
 	tx, err := e.db.BeginTx(ctx, nil)
 	if err != nil {
-		render.Render(w, r, ErrServer(err))
+		renderServerError(w, r, err)
 		return
 	}
 	defer tx.Rollback()
@@ -86,14 +87,14 @@ func (e Env) GetAllMessages(w http.ResponseWriter, r *http.Request) {
 		rows, err = tx.QueryContext(ctx, query, spaceId)
 	}
 	if err != nil {
-		render.Render(w, r, ErrServer(err))
+		renderServerError(w, r, err)
 		return
 	}
 	var messageIds []string
 	for rows.Next() {
 		var id string
 		if err = rows.Scan(&id); err != nil {
-			render.Render(w, r, ErrServer(err))
+			renderServerError(w, r, err)
 			return
 		}
 		messageIds = append(messageIds, id)
@@ -104,18 +105,18 @@ func (e Env) GetAllMessages(w http.ResponseWriter, r *http.Request) {
 func (e Env) GetMessage(w http.ResponseWriter, r *http.Request) {
 	spaceId, err := strconv.ParseInt(chi.URLParam(r, "spaceId"), 10, 64)
 	if err != nil {
-		render.Render(w, r, ErrNotFound)
+		renderNotFound(w, r)
 		return
 	}
 	messageId, err := strconv.ParseInt(chi.URLParam(r, "messageId"), 10, 64)
 	if err != nil {
-		render.Render(w, r, ErrNotFound)
+		renderNotFound(w, r)
 		return
 	}
 	ctx := r.Context()
 	tx, err := e.db.BeginTx(ctx, nil)
 	if err != nil {
-		render.Render(w, r, ErrServer(err))
+		renderServerError(w, r, err)
 		return
 	}
 	data := &GetMessageResponse{}
@@ -123,10 +124,10 @@ func (e Env) GetMessage(w http.ResponseWriter, r *http.Request) {
 		"SELECT space_id, msg_id, author, msg_time, msg_text FROM messages WHERE space_id = ? AND msg_id = ?",
 		spaceId, messageId).Scan(&data.SpaceId, &data.MessageId, &data.Author, &data.Time, &data.Message)
 	if err != nil {
-		render.Render(w, r, ErrServer(err))
+		renderServerError(w, r, err)
 		return
 	}
-	render.Render(w, r, data)
+	render.JSON(w, r, data)
 }
 
 type AddMessageRequest struct {
@@ -149,20 +150,10 @@ type AddMessageResponse struct {
 	URI string `json:"uri"`
 }
 
-func (AddMessageResponse) Render(_ http.ResponseWriter, r *http.Request) error {
-	render.Status(r, 201)
-	return nil
-}
-
 type GetMessageResponse struct {
 	SpaceId   int64     `json:"spaceId"`
 	MessageId int64     `json:"msgId"`
 	Author    string    `json:"author"`
 	Time      time.Time `json:"time"`
 	Message   string    `json:"message"`
-}
-
-func (GetMessageResponse) Render(_ http.ResponseWriter, r *http.Request) error {
-	render.Status(r, 201)
-	return nil
 }
