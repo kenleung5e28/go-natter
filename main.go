@@ -21,7 +21,7 @@ type Env struct {
 func filterInvalidContentTypeRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" && render.GetRequestContentType(r) != render.ContentTypeJSON {
-			render.Render(w, r, &ErrResponse{
+			renderError(w, r, ErrResponse{
 				HTTPStatusCode: 415,
 				Message:        http.StatusText(415),
 				ErrorText:      "Only application/json supported",
