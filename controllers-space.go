@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/go-chi/render"
@@ -14,26 +16,18 @@ func (e Env) CreateSpace(w http.ResponseWriter, r *http.Request) {
 		renderInvalidRequest(w, r, err)
 		return
 	}
-	ctx := r.Context()
-	tx, err := e.db.BeginTx(ctx, nil)
+	var spaceId int64
+	err := transact(e.db, r.Context(), func(tx *sql.Tx, ctx context.Context) error {
+		res, err := tx.ExecContext(ctx,
+			"INSERT INTO spaces(name, owner) VALUES (?, ?);",
+			data.Name, data.Owner)
+		if err != nil {
+			return err
+		}
+		spaceId, err = res.LastInsertId()
+		return err
+	})
 	if err != nil {
-		renderServerError(w, r, err)
-		return
-	}
-	defer tx.Rollback()
-	res, err := tx.ExecContext(ctx,
-		"INSERT INTO spaces(name, owner) VALUES (?, ?);",
-		data.Name, data.Owner)
-	if err != nil {
-		renderServerError(w, r, err)
-		return
-	}
-	spaceId, err := res.LastInsertId()
-	if err != nil {
-		renderServerError(w, r, err)
-		return
-	}
-	if err = tx.Commit(); err != nil {
 		renderServerError(w, r, err)
 		return
 	}

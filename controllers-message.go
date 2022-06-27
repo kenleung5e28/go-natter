@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -19,37 +20,33 @@ func (e Env) AddMessage(w http.ResponseWriter, r *http.Request) {
 		renderInvalidRequest(w, r, err)
 		return
 	}
-	ctx := r.Context()
-	tx, err := e.db.BeginTx(ctx, nil)
+	notFound := false
+	var messageId int64
+	err := transact(e.db, r.Context(), func(tx *sql.Tx, ctx context.Context) error {
+		var count int64
+		err := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM spaces WHERE space_id = ?;", spaceId).Scan(&count)
+		if err != nil {
+			return err
+		}
+		if count == 0 {
+			notFound = true
+			return nil
+		}
+		res, err := tx.ExecContext(ctx,
+			"INSERT INTO messages(space_id, author, msg_text) VALUES (?, ?, ?);",
+			spaceId, data.Author, data.Text)
+		if err != nil {
+			return err
+		}
+		messageId, err = res.LastInsertId()
+		return err
+	})
 	if err != nil {
 		renderServerError(w, r, err)
 		return
 	}
-	defer tx.Rollback()
-	var count int64
-	err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM spaces WHERE space_id = ?;", spaceId).Scan(&count)
-	if err != nil {
-		renderServerError(w, r, err)
-		return
-	}
-	if count == 0 {
+	if notFound {
 		renderNotFound(w, r)
-		return
-	}
-	res, err := tx.ExecContext(ctx,
-		"INSERT INTO messages(space_id, author, msg_text) VALUES (?, ?, ?);",
-		spaceId, data.Author, data.Text)
-	if err != nil {
-		renderServerError(w, r, err)
-		return
-	}
-	messageId, err := res.LastInsertId()
-	if err != nil {
-		renderServerError(w, r, err)
-		return
-	}
-	if err = tx.Commit(); err != nil {
-		renderServerError(w, r, err)
 		return
 	}
 	w.WriteHeader(201)
@@ -71,33 +68,31 @@ func (e Env) GetAllMessages(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	ctx := r.Context()
-	tx, err := e.db.BeginTx(ctx, nil)
-	if err != nil {
-		renderServerError(w, r, err)
-		return
-	}
-	defer tx.Rollback()
-	var rows *sql.Rows
-	if since != "" {
-		query := "SELECT msg_id FROM messages WHERE space_id = ? AND msg_time >= ?"
-		rows, err = tx.QueryContext(ctx, query, spaceId, since)
-	} else {
-		query := "SELECT msg_id FROM messages WHERE space_id = ?"
-		rows, err = tx.QueryContext(ctx, query, spaceId)
-	}
-	if err != nil {
-		renderServerError(w, r, err)
-		return
-	}
 	var messageIds []string
-	for rows.Next() {
-		var id string
-		if err = rows.Scan(&id); err != nil {
-			renderServerError(w, r, err)
-			return
+	err = transact(e.db, r.Context(), func(tx *sql.Tx, ctx context.Context) error {
+		var rows *sql.Rows
+		if since != "" {
+			query := "SELECT msg_id FROM messages WHERE space_id = ? AND msg_time >= ?"
+			rows, err = tx.QueryContext(ctx, query, spaceId, since)
+		} else {
+			query := "SELECT msg_id FROM messages WHERE space_id = ?"
+			rows, err = tx.QueryContext(ctx, query, spaceId)
 		}
-		messageIds = append(messageIds, id)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				return err
+			}
+			messageIds = append(messageIds, id)
+		}
+		return nil
+	})
+	if err != nil {
+		renderServerError(w, r, err)
+		return
 	}
 	render.JSON(w, r, messageIds)
 }
@@ -113,16 +108,12 @@ func (e Env) GetMessage(w http.ResponseWriter, r *http.Request) {
 		renderNotFound(w, r)
 		return
 	}
-	ctx := r.Context()
-	tx, err := e.db.BeginTx(ctx, nil)
-	if err != nil {
-		renderServerError(w, r, err)
-		return
-	}
 	data := &GetMessageResponse{}
-	err = tx.QueryRowContext(ctx,
-		"SELECT space_id, msg_id, author, msg_time, msg_text FROM messages WHERE space_id = ? AND msg_id = ?",
-		spaceId, messageId).Scan(&data.SpaceId, &data.MessageId, &data.Author, &data.Time, &data.Message)
+	err = transact(e.db, r.Context(), func(tx *sql.Tx, ctx context.Context) error {
+		return tx.QueryRowContext(ctx,
+			"SELECT space_id, msg_id, author, msg_time, msg_text FROM messages WHERE space_id = ? AND msg_id = ?",
+			spaceId, messageId).Scan(&data.SpaceId, &data.MessageId, &data.Author, &data.Time, &data.Message)
+	})
 	if err != nil {
 		renderServerError(w, r, err)
 		return
