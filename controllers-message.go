@@ -108,14 +108,24 @@ func (e Env) GetMessage(w http.ResponseWriter, r *http.Request) {
 		renderNotFound(w, r)
 		return
 	}
+	notFound := false
 	data := &GetMessageResponse{}
 	err = transact(e.db, r.Context(), func(tx *sql.Tx, ctx context.Context) error {
-		return tx.QueryRowContext(ctx,
+		err := tx.QueryRowContext(ctx,
 			"SELECT space_id, msg_id, author, msg_time, msg_text FROM messages WHERE space_id = ? AND msg_id = ?",
 			spaceId, messageId).Scan(&data.SpaceId, &data.MessageId, &data.Author, &data.Time, &data.Message)
+		if errors.Is(err, sql.ErrNoRows) {
+			notFound = true
+			return nil
+		}
+		return err
 	})
 	if err != nil {
 		renderServerError(w, r, err)
+		return
+	}
+	if notFound {
+		renderNotFound(w, r)
 		return
 	}
 	render.JSON(w, r, data)
